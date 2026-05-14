@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Usuários - Monitoramento de Servidores</title>
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/tema.js"></script>
+<script src="/assets/icones.js" defer></script>
+<script src="/assets/utils.js" defer></script>
+</head>
+<body>
+<header class="topo">
+    <div class="topo-titulo">
+        <span class="icone-logo" data-icone="logo"></span>
+        <strong>Monitoramento de Servidores</strong>
+    </div>
+    <nav class="topo-nav">
+        <a href="/painel.html"><span data-icone="painel"></span> Painel</a>
+        <a href="/servidores.html"><span data-icone="servidor"></span> Servidores</a>
+        <a href="/logs.html"><span data-icone="logs"></span> Logs</a>
+        <a href="/usuarios.html" id="link-usuarios" class="ativo"><span data-icone="usuarios"></span> Usuários</a>
+        <a href="/configuracoes.html" id="link-config" style="display:none"><span data-icone="configuracoes"></span> Configurações</a>
+        <a href="/minha-conta.html"><span data-icone="usuario"></span> Minha conta</a>
+        <span class="topo-user">
+            <strong id="nome-usuario">...</strong>
+            <span class="tag-admin" id="tag-admin" style="display:none">admin</span>
+        </span>
+        <button type="button" class="btn-icone-topo" onclick="alternarTema()" data-tooltip="Alternar tema (T)">
+            <span class="ico-sol" data-icone="sol"></span>
+            <span class="ico-lua" data-icone="lua"></span>
+        </button>
+        <button type="button" class="btn-icone-topo" id="btn-logout" data-tooltip="Sair">
+            <span data-icone="sair"></span>
+        </button>
+    </nav>
+</header>
+
+<main class="conteudo">
+
+<section class="painel-cabecalho">
+    <div>
+        <h1>Usuários</h1>
+        <p class="sub">Somente administradores podem cadastrar e gerenciar usuários.</p>
+    </div>
+    <a href="/painel.html" class="btn">Voltar ao painel</a>
+</section>
+
+<div id="alerta-msg"></div>
+
+<section class="cartao">
+    <h2><span data-icone="adicionar"></span> Cadastrar novo usuário</h2>
+    <form id="form-criar" class="form-grid" autocomplete="off">
+        <label>
+            <span>Nome completo</span>
+            <input type="text" name="nome" required maxlength="100">
+        </label>
+        <label>
+            <span>Login (usuário)</span>
+            <input type="text" name="usuario" required pattern="[a-zA-Z0-9_.\-]{3,50}">
+        </label>
+        <label>
+            <span>Senha (min. 6)</span>
+            <input type="password" name="senha" required minlength="6">
+        </label>
+        <label>
+            <span>Email (opcional, para receber alertas)</span>
+            <input type="email" name="email" maxlength="150" placeholder="exemplo@dominio.com">
+        </label>
+        <label class="check">
+            <input type="checkbox" name="isAdmin" value="1">
+            <span>Administrador</span>
+        </label>
+        <div class="full">
+            <button type="submit" class="btn btn-primario">
+                <span data-icone="adicionar"></span> Cadastrar usuário
+            </button>
+        </div>
+    </form>
+</section>
+
+<section>
+    <h2><span data-icone="usuarios"></span> Usuários cadastrados</h2>
+    <div class="tabela-busca">
+        <svg class="icone icone-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <input type="text" id="busca-usuario" placeholder="Buscar por nome ou login...">
+        <span class="contador" id="contador-busca-usuario"></span>
+    </div>
+    <div id="container-tabela"><div class="alerta alerta-info"><span data-icone="info"></span><div>Carregando...</div></div></div>
+</section>
+
+</main>
+<footer class="rodape"><small>Monitoramento de Servidores - Node.js</small></footer>
+
+<script>
+let usuarioAtual = null;
+
+function escapar(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function mostrarMsg(texto, tipo) {
+    const div = document.getElementById('alerta-msg');
+    const cls = tipo === 'ok' ? 'alerta-ok' : 'alerta-erro';
+    const ico = tipo === 'ok' ? 'ok' : 'erro';
+    div.innerHTML = '<div class="alerta ' + cls + '"><span data-icone="' + ico + '"></span><div>' + escapar(texto) + '</div></div>';
+    window.icones.renderizar(div);
+    setTimeout(() => { div.innerHTML = ''; }, 5000);
+}
+
+async function carregar() {
+    const est = await fetch('/api/estado').then(r => r.json());
+    if (!est.autenticado || !est.usuario.isAdmin) { location.href = '/painel.html'; return; }
+    usuarioAtual = est.usuario;
+    document.getElementById('nome-usuario').textContent = est.usuario.nome;
+    document.getElementById('tag-admin').style.display = 'inline-block';
+    document.getElementById('link-usuarios').style.display = 'inline-flex';
+
+    const resp = await fetch('/api/usuarios').then(r => r.json());
+    const cont = document.getElementById('container-tabela');
+    if (!resp.usuarios || resp.usuarios.length === 0) {
+        cont.innerHTML =
+            '<div class="estado-vazio">' +
+                window.icones.svg('usuarios', 'icone-grande') +
+                '<h3>Nenhum usuário cadastrado</h3>' +
+            '</div>';
+        return;
+    }
+    let html = '<table class="tabela"><thead><tr>' +
+        '<th>Nome</th><th>Login</th><th>Email</th><th>Admin</th><th>Criado em</th><th style="text-align:right">Ações</th>' +
+        '</tr></thead><tbody>';
+    for (const u of resp.usuarios) {
+        const dt = new Date(u.criadoEm).toLocaleString('pt-BR');
+        const emailTxt = u.email
+            ? '<small>' + escapar(u.email) + '</small>'
+            : '<small style="color:var(--texto-muito-fraco)">--</small>';
+        const ehProprio = u.id === usuarioAtual.id;
+        html += '<tr>' +
+            '<td><strong>' + escapar(u.nome) + '</strong>' +
+                (ehProprio ? '<span class="tag-voce">você</span>' : '') + '</td>' +
+            '<td><code>' + escapar(u.usuario) + '</code></td>' +
+            '<td>' + emailTxt + '</td>' +
+            '<td>' + (u.isAdmin ? '<span class="tag-admin">admin</span>' : '<span style="color:var(--texto-fraco)">não</span>') + '</td>' +
+            '<td><small>' + escapar(dt) + '</small></td>' +
+            '<td style="text-align:right;white-space:nowrap">' +
+                '<div class="acoes" style="display:inline-flex;justify-content:flex-end">' +
+                    '<button class="btn-acao-icone" data-acao="editar" data-id="' + u.id + '" data-tooltip="Editar usuário">' +
+                        window.icones.svg('configuracoes', 'icone-sm') + '</button>' +
+                    '<button class="btn-acao-icone" data-acao="associar" data-id="' + u.id + '" data-nome="' + escapar(u.nome) + '" data-tooltip="Servidores associados">' +
+                        window.icones.svg('vinculo', 'icone-sm') + '</button>' +
+                    '<button class="btn-acao-icone" data-acao="senha" data-id="' + u.id + '" data-nome="' + escapar(u.usuario) + '" data-tooltip="Redefinir senha">' +
+                        window.icones.svg('cadeado', 'icone-sm') + '</button>' +
+                    '<button class="btn-acao-icone perigo" data-acao="excluir" data-id="' + u.id + '" data-nome="' + escapar(u.usuario) +
+                        '" data-tooltip="' + (ehProprio ? 'Você não pode excluir o próprio usuário' : 'Excluir') + '"' +
+                        (ehProprio ? ' disabled' : '') + '>' +
+                        window.icones.svg('excluir', 'icone-sm') + '</button>' +
+                '</div>' +
+            '</td></tr>';
+    }
+    html += '</tbody></table>';
+    cont.innerHTML = html;
+    aplicarFiltroBuscaUsuario();
+
+    cont.querySelectorAll('[data-acao]').forEach(b => b.addEventListener('click', async (ev) => {
+        const btn = ev.currentTarget;
+        const id = btn.dataset.id;
+        const acao = btn.dataset.acao;
+        const nome = btn.dataset.nome;
+
+        if (acao === 'editar') {
+            abrirEditarUsuario(Number(id));
+            return;
+        }
+        if (acao === 'associar') {
+            abrirAssociarServidores(Number(id), nome);
+            return;
+        }
+        if (acao === 'excluir') {
+            const ok = await window.utils.confirmar({
+                titulo: 'Excluir usuário',
+                mensagem: 'Tem certeza que deseja excluir o usuário "' + nome + '"? Esta ação não pode ser desfeita.',
+                textoOk: 'Excluir',
+                perigo: true,
+            });
+            if (!ok) return;
+            const r = await fetch('/api/usuarios/' + id, { method: 'DELETE' }).then(r => r.json());
+            if (r.ok) { mostrarMsg('Usuário excluído.', 'ok'); carregar(); }
+            else mostrarMsg('Erro: ' + r.erro, 'erro');
+        } else if (acao === 'senha') {
+            const nova = await window.utils.solicitar({
+                titulo: 'Redefinir senha',
+                mensagem: 'Defina a nova senha para o usuário "' + nome + '". O usuário poderá trocar depois em "Minha conta".',
+                label: 'Nova senha',
+                tipo: 'password',
+                minLength: 6,
+                placeholder: 'mínimo 6 caracteres',
+                textoOk: 'Redefinir',
+                icone: 'cadeado',
+            });
+            if (nova === null) return;
+            const r = await fetch('/api/usuarios/' + id + '/senha', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ senha: nova }),
+            }).then(r => r.json()).catch(() => ({ erro: 'falha_rede' }));
+            if (r.ok) mostrarMsg('Senha redefinida.', 'ok');
+            else mostrarMsg('Erro: ' + r.erro, 'erro');
+        }
+    }));
+}
+
+document.getElementById('btn-logout').addEventListener('click', async () => {
+    await fetch('/api/logout', { method: 'POST' });
+    location.href = '/login.html';
+});
+
+function aplicarFiltroBuscaUsuario() {
+    const termo = (document.getElementById('busca-usuario').value || '').trim().toLowerCase();
+    const linhas = document.querySelectorAll('#container-tabela tbody tr');
+    let visiveis = 0;
+    linhas.forEach((tr) => {
+        const txt = tr.textContent.toLowerCase();
+        const ok = !termo || txt.includes(termo);
+        tr.style.display = ok ? '' : 'none';
+        if (ok) visiveis++;
+    });
+    const cont = document.getElementById('contador-busca-usuario');
+    cont.textContent = termo ? (visiveis + ' / ' + linhas.length) : '';
+}
+document.getElementById('busca-usuario').addEventListener('input', aplicarFiltroBuscaUsuario);
+
+document.getElementById('form-criar').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.target;
+    const btn = f.querySelector('button[type=submit]');
+    window.utils.botaoCarregando(btn, true);
+    let r;
+    try {
+        r = await fetch('/api/usuarios', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                nome: f.nome.value.trim(),
+                usuario: f.usuario.value.trim(),
+                senha: f.senha.value,
+                email: f.email.value.trim() || null,
+                isAdmin: f.isAdmin.checked,
+            }),
+        }).then(r => r.json());
+    } catch (err) {
+        r = { erro: 'falha_rede' };
+    } finally {
+        window.utils.botaoCarregando(btn, false);
+    }
+    if (r.ok) {
+        f.reset();
+        carregar();
+        mostrarMsg('Usuário cadastrado com sucesso.', 'ok');
+    } else {
+        const msgs = {
+            campos_obrigatorios: 'Preencha todos os campos.',
+            senha_curta: 'Senha precisa ter pelo menos 6 caracteres.',
+            usuario_invalido: 'Login inválido (3-50 caracteres: letras, números, ponto, hífen, underscore).',
+            usuario_duplicado: 'Já existe um usuário com esse login.',
+            email_invalido: 'Email inválido.',
+        };
+        mostrarMsg(msgs[r.erro] || ('Erro: ' + r.erro), 'erro');
+    }
+});
+
+async function abrirEditarUsuario(userId) {
+    let resp;
+    try {
+        resp = await fetch('/api/usuarios').then(r => r.json());
+    } catch (e) {
+        mostrarMsg('Falha ao carregar usuário.', 'erro');
+        return;
+    }
+    const u = (resp.usuarios || []).find(x => x.id === userId);
+    if (!u) { mostrarMsg('Usuário não encontrado.', 'erro'); return; }
+
+    const ehProprio = u.id === usuarioAtual.id;
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-fundo';
+
+    const inputStyle = 'background:var(--bg);border:1px solid var(--borda);color:var(--texto);padding:10px 13px;border-radius:6px;font-size:0.95rem;font-family:inherit;width:100%';
+    const labelStyle = 'display:flex;flex-direction:column;gap:6px;margin-bottom:14px;font-size:0.9rem';
+    const spanStyle = 'color:var(--texto-fraco);font-size:0.82rem;font-weight:500';
+
+    overlay.innerHTML =
+        '<div class="modal" style="max-width:520px">' +
+            '<h2>' + window.icones.svg('configuracoes') + ' Editar usuário</h2>' +
+            '<p class="modal-titulo-info">Login atual: <strong style="color:var(--texto)">' + escapar(u.usuario) + '</strong></p>' +
+            '<form id="form-editar-user" autocomplete="off">' +
+                '<label style="' + labelStyle + '">' +
+                    '<span style="' + spanStyle + '">Nome completo *</span>' +
+                    '<input type="text" name="nome" required maxlength="100" value="' + escapar(u.nome) + '" style="' + inputStyle + '">' +
+                '</label>' +
+                '<label style="' + labelStyle + '">' +
+                    '<span style="' + spanStyle + '">Login (usuário) *</span>' +
+                    '<input type="text" name="usuario" required pattern="[a-zA-Z0-9_.\\-]{3,50}" value="' + escapar(u.usuario) + '" style="' + inputStyle + '">' +
+                '</label>' +
+                '<label style="' + labelStyle + '">' +
+                    '<span style="' + spanStyle + '">Email (para receber alertas)</span>' +
+                    '<input type="email" name="email" maxlength="150" value="' + escapar(u.email || '') + '" placeholder="exemplo@dominio.com" style="' + inputStyle + '">' +
+                '</label>' +
+                '<label class="check" style="display:flex;align-items:center;gap:8px;margin-bottom:16px;cursor:' + (ehProprio ? 'not-allowed' : 'pointer') + '">' +
+                    '<input type="checkbox" name="isAdmin"' + (u.isAdmin ? ' checked' : '') + (ehProprio ? ' disabled' : '') + '>' +
+                    '<span style="font-size:0.92rem">Administrador' +
+                        (ehProprio ? ' <small style="color:var(--texto-fraco)">(você não pode alterar seu próprio admin)</small>' : '') +
+                    '</span>' +
+                '</label>' +
+                '<div class="acoes">' +
+                    '<button type="button" class="btn" data-acao="cancelar">Cancelar</button>' +
+                    '<button type="submit" class="btn btn-salvar">' +
+                        window.icones.svg('salvar') + ' Salvar alterações</button>' +
+                '</div>' +
+            '</form>' +
+        '</div>';
+
+    document.body.appendChild(overlay);
+    window.icones.renderizar(overlay);
+
+    const form = overlay.querySelector('#form-editar-user');
+    function fechar() { overlay.remove(); }
+
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) return fechar();
+        if (e.target.closest('[data-acao="cancelar"]')) return fechar();
+    });
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = form.querySelector('button[type=submit]');
+        const dados = {
+            nome: form.nome.value.trim(),
+            usuario: form.usuario.value.trim(),
+            email: form.email.value.trim() || null,
+        };
+        if (!ehProprio) dados.isAdmin = form.isAdmin.checked;
+
+        window.utils.botaoCarregando(btn, true);
+        let r;
+        try {
+            r = await fetch('/api/usuarios/' + userId, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dados),
+            }).then(r => r.json());
+        } catch (err) {
+            r = { erro: 'falha_rede' };
+        } finally {
+            window.utils.botaoCarregando(btn, false);
+        }
+        if (r.ok) {
+            mostrarMsg('Usuário atualizado.', 'ok');
+            fechar();
+            carregar();
+        } else {
+            const msgs = {
+                nome_obrigatorio: 'Informe o nome.',
+                usuario_obrigatorio: 'Informe o login.',
+                usuario_invalido: 'Login inválido (3-50 caracteres: letras, números, ponto, hífen, underscore).',
+                usuario_duplicado: 'Já existe outro usuário com esse login.',
+                email_invalido: 'Email inválido.',
+                nao_pode_remover_proprio_admin: 'Você não pode remover seu próprio acesso de admin.',
+                falha_rede: 'Falha de conexão.',
+            };
+            mostrarMsg(msgs[r.erro] || ('Erro: ' + r.erro), 'erro');
+        }
+    });
+}
+
+async function abrirAssociarServidores(userId, userNome) {
+    let resp;
+    try {
+        resp = await fetch('/api/usuarios/' + userId + '/servidores').then(r => r.json());
+    } catch (e) {
+        mostrarMsg('Falha ao carregar servidores.', 'erro');
+        return;
+    }
+    if (!resp || !resp.ok) {
+        mostrarMsg('Erro ao buscar servidores: ' + (resp && resp.erro || 'desconhecido'), 'erro');
+        return;
+    }
+    const servidores = resp.servidores || [];
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-fundo';
+
+    let cardsHtml;
+    if (servidores.length === 0) {
+        cardsHtml =
+            '<div class="estado-vazio" style="padding:28px">' +
+                window.icones.svg('servidor', 'icone-grande') +
+                '<h3>Nenhum servidor cadastrado</h3>' +
+                '<p>Cadastre servidores em <a href="/servidores.html">Servidores</a> para poder associar.</p>' +
+            '</div>';
+    } else {
+        cardsHtml =
+            '<div class="modal-seção-header">' +
+                '<h3>' + window.icones.svg('vinculo', 'icone-sm') + ' Selecione os servidores</h3>' +
+                '<span class="contador" id="contador-assoc">0 selecionado(s)</span>' +
+            '</div>' +
+            '<div class="grid-cards-checkbox">' +
+                servidores.map(s =>
+                    '<label class="card-checkbox' + (s.associado ? ' marcado' : '') + '">' +
+                        '<input type="checkbox" value="' + s.id + '"' + (s.associado ? ' checked' : '') + '>' +
+                        '<span>' + escapar(s.nome) + '</span>' +
+                    '</label>'
+                ).join('') +
+            '</div>';
+    }
+
+    overlay.innerHTML =
+        '<div class="modal" style="max-width:760px">' +
+            '<h2>' + window.icones.svg('vinculo') + ' Associar servidores</h2>' +
+            '<p class="modal-titulo-info">Monitorador: <strong style="color:var(--texto)">' + escapar(userNome) + '</strong></p>' +
+            '<div style="background:var(--bg);border:1px solid var(--borda);border-radius:var(--raio-sm);padding:16px;margin-bottom:16px">' +
+                cardsHtml +
+            '</div>' +
+            '<div class="acoes">' +
+                '<button type="button" class="btn" data-acao="cancelar">Cancelar</button>' +
+                (servidores.length > 0
+                    ? '<button type="button" class="btn btn-salvar" data-acao="salvar">' +
+                        window.icones.svg('salvar') + ' Salvar associações</button>'
+                    : '') +
+            '</div>' +
+        '</div>';
+
+    document.body.appendChild(overlay);
+    window.icones.renderizar(overlay);
+
+    function atualizarContador() {
+        const sel = overlay.querySelectorAll('input[type=checkbox]:checked').length;
+        const total = overlay.querySelectorAll('input[type=checkbox]').length;
+        const cont = overlay.querySelector('#contador-assoc');
+        if (cont) cont.textContent = sel + ' / ' + total + ' selecionado(s)';
+    }
+    atualizarContador();
+
+    overlay.addEventListener('change', (e) => {
+        if (e.target.matches('input[type=checkbox]')) {
+            const label = e.target.closest('.card-checkbox');
+            if (label) label.classList.toggle('marcado', e.target.checked);
+            atualizarContador();
+        }
+    });
+
+    function fechar() { overlay.remove(); }
+
+    overlay.addEventListener('click', async (e) => {
+        if (e.target === overlay) return fechar();
+        const acao = e.target.closest('[data-acao]');
+        if (!acao) return;
+        if (acao.dataset.acao === 'cancelar') return fechar();
+        if (acao.dataset.acao === 'salvar') {
+            const btn = acao;
+            const ids = Array.from(overlay.querySelectorAll('input[type=checkbox]:checked'))
+                .map(c => Number(c.value));
+            window.utils.botaoCarregando(btn, true);
+            let r;
+            try {
+                r = await fetch('/api/usuarios/' + userId + '/servidores', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ servidorIds: ids })
+                }).then(r => r.json());
+            } catch (err) {
+                r = { erro: 'falha_rede' };
+            } finally {
+                window.utils.botaoCarregando(btn, false);
+            }
+            if (r.ok) {
+                mostrarMsg('Associações salvas (' + ids.length + ' servidor[es]).', 'ok');
+                fechar();
+            } else {
+                mostrarMsg('Erro: ' + r.erro, 'erro');
+            }
+        }
+    });
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    carregar();
+    // Atualiza a lista a cada 30 segundos
+    setInterval(carregar, 30000);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Instalação - Monitoramento de Servidores</title>
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/tema.js"></script>
+<script src="/assets/icones.js" defer></script>
+<script src="/assets/utils.js" defer></script>
+</head>
+<body class="tela-login">
+    <button type="button" class="btn-icone-topo tema-flutuante" onclick="alternarTema()" title="Alternar tema">
+        <span class="ico-sol" data-icone="sol"></span>
+        <span class="ico-lua" data-icone="lua"></span>
+    </button>
+
+    <div class="card-login" id="container">
+        <div class="logo-login" data-icone="logo"></div>
+        <h1>Bem-vindo</h1>
+        <p class="subtitulo">Crie o primeiro usuário administrador para começar.</p>
+
+        <div id="alerta" class="alerta alerta-erro" style="display:none"></div>
+
+        <form id="form-install" class="form-vertical" autocomplete="off">
+            <label>
+                <span>Nome completo</span>
+                <input type="text" name="nome" required maxlength="100" placeholder="Seu nome">
+            </label>
+            <label>
+                <span>Usuário (login)</span>
+                <input type="text" name="usuario" required pattern="[a-zA-Z0-9_.\-]{3,50}" value="admin"
+                       title="3-50 caracteres: letras, números, ponto, hífen, underscore">
+            </label>
+            <label>
+                <span>Senha (mínimo 6 caracteres)</span>
+                <input type="password" name="senha" required minlength="6" data-toggle-senha>
+            </label>
+            <label>
+                <span>Confirmar senha</span>
+                <input type="password" name="senha2" required minlength="6" data-toggle-senha>
+            </label>
+
+            <button type="submit" class="btn btn-primario" style="justify-content:center">Instalar</button>
+        </form>
+    </div>
+
+<script>
+(async () => {
+    const est = await fetch('/api/estado').then(r => r.json());
+    if (est.instalado) location.href = est.autenticado ? '/painel.html' : '/login.html';
+})();
+
+window.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('form-install');
+    if (window.utils) window.utils.validarSenhasConferem(form.senha, form.senha2);
+});
+
+document.getElementById('form-install').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('button[type=submit]');
+    const dados = {
+        nome: form.nome.value.trim(),
+        usuario: form.usuario.value.trim(),
+        senha: form.senha.value,
+    };
+    const senha2 = form.senha2.value;
+    const alerta = document.getElementById('alerta');
+    alerta.style.display = 'none';
+
+    if (dados.senha !== senha2) {
+        alerta.textContent = 'As senhas não conferem.';
+        alerta.style.display = 'block';
+        return;
+    }
+
+    if (window.utils) window.utils.botaoCarregando(btn, true);
+    let json;
+    try {
+        const resp = await fetch('/api/install', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados),
+        });
+        json = await resp.json();
+    } catch (err) {
+        json = { erro: 'falha_rede' };
+    } finally {
+        if (window.utils) window.utils.botaoCarregando(btn, false);
+    }
+    if (json.ok) {
+        location.href = '/painel.html';
+    } else {
+        const msgs = {
+            campos_obrigatorios: 'Preencha todos os campos.',
+            senha_curta: 'Senha precisa ter pelo menos 6 caracteres.',
+            usuario_invalido: 'Usuário inválido (3-50 caracteres: letras, números, ponto, hífen, underscore).',
+            ja_instalado: 'Sistema já instalado. Redirecionando...',
+        };
+        alerta.textContent = msgs[json.erro] || 'Erro: ' + (json.erro || 'desconhecido');
+        alerta.style.display = 'block';
+        if (json.erro === 'ja_instalado') setTimeout(() => location.href = '/login.html', 1500);
+    }
+});
+
+</script>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Painel - Monitoramento de Servidores</title>
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/tema.js"></script>
+<script src="/assets/icones.js" defer></script>
+<script src="/assets/utils.js" defer></script>
+</head>
+<body>
+<header class="topo">
+    <div class="topo-titulo">
+        <span class="icone-logo" data-icone="logo"></span>
+        <strong>Monitoramento de Servidores</strong>
+    </div>
+    <nav class="topo-nav">
+        <a href="/painel.html" class="ativo"><span data-icone="painel"></span> Painel</a>
+        <a href="/servidores.html"><span data-icone="servidor"></span> Servidores</a>
+        <a href="/logs.html"><span data-icone="logs"></span> Logs</a>
+        <a href="/usuarios.html" id="link-usuarios" style="display:none"><span data-icone="usuarios"></span> Usuários</a>
+        <a href="/configuracoes.html" id="link-config" style="display:none"><span data-icone="configuracoes"></span> Configurações</a>
+        <a href="/minha-conta.html"><span data-icone="usuario"></span> Minha conta</a>
+        <span class="topo-user">
+            <strong id="nome-usuario">...</strong>
+            <span class="tag-admin" id="tag-admin" style="display:none">admin</span>
+        </span>
+        <button type="button" class="btn-icone-topo" onclick="alternarTema()" data-tooltip="Alternar tema (T)">
+            <span class="ico-sol" data-icone="sol"></span>
+            <span class="ico-lua" data-icone="lua"></span>
+        </button>
+        <button type="button" class="btn-icone-topo" id="btn-logout" data-tooltip="Sair">
+            <span data-icone="sair"></span>
+        </button>
+    </nav>
+</header>
+
+<main class="conteudo">
+
+<section class="painel-cabecalho">
+    <div>
+        <h1>Painel de Monitoramento</h1>
+        <p class="sub">
+            <span class="ponto-vivo"></span>
+            Verificação automática a cada <span id="intervalo">30</span>s
+            <span class="separador">&middot;</span>
+            <span id="texto-atualizacao">atualizando...</span>
+        </p>
+    </div>
+    <div class="indicadores">
+        <div class="indicador">
+            <span class="num" id="contador-online">0</span>
+            <small>Online</small>
+        </div>
+        <div class="indicador alerta">
+            <span class="num" id="contador-offline">0</span>
+            <small>Offline</small>
+        </div>
+        <div class="indicador neutro">
+            <span class="num" id="contador-total">0</span>
+            <small>Total</small>
+        </div>
+        <div class="indicador neutro" data-tooltip="Quedas registradas nas últimas 24 horas">
+            <span class="num" id="contador-quedas">0</span>
+            <small>Quedas 24h</small>
+        </div>
+    </div>
+</section>
+
+<section>
+    <div class="barra-acoes">
+        <h2>Servidores</h2>
+        <div>
+            <button type="button" class="btn" id="btn-toggle-som" data-tooltip="Alternar som dos alertas">
+                <span data-icone="som_on" id="icone-som-btn"></span> <span id="texto-som">Som: ON</span>
+            </button>
+            <button type="button" class="btn" id="btn-verificar-agora" data-tooltip="Verificar agora (R)">
+                <span data-icone="refresh"></span> Verificar agora
+            </button>
+            <a href="/servidores.html" class="btn btn-primario">
+                <span data-icone="configuracoes"></span> Gerenciar
+            </a>
+        </div>
+    </div>
+
+    <div id="container-tabela">
+        <div class="alerta alerta-info"><span data-icone="info"></span><div>Carregando...</div></div>
+    </div>
+</section>
+
+<section>
+    <h2><span data-icone="atividade"></span> Eventos recentes</h2>
+    <div id="lista-eventos">
+        <div class="alerta alerta-info"><span data-icone="info"></span><div>Nenhum evento ainda.</div></div>
+    </div>
+</section>
+
+<div id="notificações" aria-live="assertive"></div>
+
+</main>
+<footer class="rodape"><small>Monitoramento de Servidores - Node.js</small></footer>
+
+<script src="/assets/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Servidores - Monitoramento de Servidores</title>
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/tema.js"></script>
+<script src="/assets/icones.js" defer></script>
+<script src="/assets/utils.js" defer></script>
+</head>
+<body>
+<header class="topo">
+    <div class="topo-titulo">
+        <span class="icone-logo" data-icone="logo"></span>
+        <strong>Monitoramento de Servidores</strong>
+    </div>
+    <nav class="topo-nav">
+        <a href="/painel.html"><span data-icone="painel"></span> Painel</a>
+        <a href="/servidores.html" class="ativo"><span data-icone="servidor"></span> Servidores</a>
+        <a href="/logs.html"><span data-icone="logs"></span> Logs</a>
+        <a href="/usuarios.html" id="link-usuarios" style="display:none"><span data-icone="usuarios"></span> Usuários</a>
+        <a href="/configuracoes.html" id="link-config" style="display:none"><span data-icone="configuracoes"></span> Configurações</a>
+        <a href="/minha-conta.html"><span data-icone="usuario"></span> Minha conta</a>
+        <span class="topo-user">
+            <strong id="nome-usuario">...</strong>
+            <span class="tag-admin" id="tag-admin" style="display:none">admin</span>
+        </span>
+        <button type="button" class="btn-icone-topo" onclick="alternarTema()" data-tooltip="Alternar tema (T)">
+            <span class="ico-sol" data-icone="sol"></span>
+            <span class="ico-lua" data-icone="lua"></span>
+        </button>
+        <button type="button" class="btn-icone-topo" id="btn-logout" data-tooltip="Sair">
+            <span data-icone="sair"></span>
+        </button>
+    </nav>
+</header>
+
+<main class="conteudo">
+
+<section class="painel-cabecalho">
+    <div>
+        <h1>Servidores monitorados</h1>
+        <p class="sub">Cadastre IPs ou hostnames para verificação via PING, HTTP, HTTPS ou TCP.</p>
+    </div>
+    <a href="/painel.html" class="btn">Voltar ao painel</a>
+</section>
+
+<div id="alerta-msg"></div>
+
+<section class="cartao">
+    <h2 id="titulo-form"><span data-icone="adicionar"></span> Adicionar novo servidor</h2>
+    <form id="form-servidor" class="form-grid" autocomplete="off">
+        <input type="hidden" name="id" value="">
+
+        <div class="form-seção">
+            <h3>Identificação</h3>
+            <span class="form-seção-sub">como o servidor será reconhecido</span>
+        </div>
+        <label>
+            <span>Nome (apelido)</span>
+            <input type="text" name="nome" required maxlength="100" placeholder="Servidor de produção">
+        </label>
+        <label>
+            <span>Host ou IP</span>
+            <input type="text" name="host" required maxlength="253" placeholder="192.168.1.1 ou exemplo.com">
+        </label>
+        <label class="full">
+            <span>Descrição (opcional)</span>
+            <input type="text" name="descricao" maxlength="255" placeholder="Servidor de banco do sistema X">
+        </label>
+
+        <div class="form-seção">
+            <h3>Verificação</h3>
+            <span class="form-seção-sub">como e quando o servidor será testado</span>
+        </div>
+        <label>
+            <span>Tipo *</span>
+            <select name="tipo" id="select-tipo" required>
+                <option value="ping">PING (ICMP)</option>
+                <option value="http">HTTP</option>
+                <option value="https">HTTPS</option>
+                <option value="tcp">TCP</option>
+            </select>
+        </label>
+        <label id="campo-porta">
+            <span>Porta *</span>
+            <input type="number" name="porta" min="1" max="65535" placeholder="80">
+        </label>
+        <label>
+            <span>Intervalo de verificação (segundos)</span>
+            <input type="number" name="intervaloSeg" min="5" max="86400" placeholder="usar padrão (30s)">
+            <small class="help">Deixe em branco para usar o intervalo global</small>
+        </label>
+        <label class="check full">
+            <input type="checkbox" name="ativo" value="1" checked>
+            <span>Servidor ativo</span>
+        </label>
+
+        <div class="form-seção">
+            <h3>Notificação</h3>
+            <span class="form-seção-sub">quem recebe alertas de queda / retorno</span>
+        </div>
+        <div class="full">
+            <div id="lista-monitoradores" class="lista-monitoradores">
+                <small class="help">Carregando...</small>
+            </div>
+            <small class="help">Se nenhum for marcado, todos os usuários recebem as notificações.</small>
+        </div>
+
+        <div class="full" style="display:flex;gap:8px;margin-top:6px">
+            <button type="submit" class="btn btn-salvar" id="btn-salvar">
+                <span data-icone="salvar"></span> <span id="texto-salvar">Salvar</span>
+            </button>
+            <button type="button" class="btn" id="btn-cancelar">Cancelar</button>
+        </div>
+    </form>
+</section>
+
+<section>
+    <h2>Lista de servidores</h2>
+    <div class="tabela-busca">
+        <svg class="icone icone-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <input type="text" id="busca-servidor" placeholder="Buscar por nome, host ou descrição...">
+        <span class="contador" id="contador-busca"></span>
+    </div>
+    <div id="container-tabela"><div class="alerta alerta-info"><span data-icone="info"></span><div>Carregando...</div></div></div>
+</section>
+
+</main>
+<footer class="rodape"><small>Monitoramento de Servidores - Node.js</small></footer>
+
+<script>
+function escapar(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function mostrarMsg(texto, tipo) {
+    const div = document.getElementById('alerta-msg');
+    const cls = tipo === 'ok' ? 'alerta-ok' : 'alerta-erro';
+    const ico = tipo === 'ok' ? 'ok' : 'erro';
+    div.innerHTML = '<div class="alerta ' + cls + '"><span data-icone="' + ico + '"></span><div>' + escapar(texto) + '</div></div>';
+    window.icones.renderizar(div);
+    setTimeout(() => { div.innerHTML = ''; }, 4000);
+}
+
+let monitoradoresDisponiveis = [];
+
+async function carregarUsuario() {
+    const est = await fetch('/api/estado').then(r => r.json());
+    if (!est.autenticado) { location.href = '/login.html'; return; }
+    document.getElementById('nome-usuario').textContent = est.usuario.nome;
+    if (est.usuario.isAdmin) {
+        document.getElementById('tag-admin').style.display = 'inline-block';
+        document.getElementById('link-usuarios').style.display = 'inline-flex';
+        const lc = document.getElementById('link-config');
+        if (lc) lc.style.display = 'inline-flex';
+    }
+}
+
+let erroMonitoradores = null;
+async function carregarMonitoradores() {
+    erroMonitoradores = null;
+    try {
+        const resp = await fetch('/api/monitoradores');
+        if (!resp.ok) {
+            erroMonitoradores = 'Falha ao buscar monitoradores (HTTP ' + resp.status + '). Reinicie o servidor Node se você acabou de atualizar o código.';
+            monitoradoresDisponiveis = [];
+        } else {
+            const r = await resp.json();
+            monitoradoresDisponiveis = (r && r.usuarios) || [];
+        }
+    } catch (e) {
+        erroMonitoradores = 'Erro de conexão ao buscar monitoradores: ' + e.message;
+        monitoradoresDisponiveis = [];
+    }
+    renderizarListaMonitoradores([]);
+}
+
+function renderizarListaMonitoradores(selecionadosIds) {
+    const cont = document.getElementById('lista-monitoradores');
+    if (erroMonitoradores) {
+        cont.innerHTML = '<div class="vazio" style="color:var(--erro)">' + escapar(erroMonitoradores) + '</div>';
+        return;
+    }
+    if (!monitoradoresDisponiveis.length) {
+        cont.innerHTML = '<div class="vazio">Nenhum usuário cadastrado. Cadastre usuários em <a href="/usuarios.html">Usuários</a>.</div>';
+        return;
+    }
+    const sel = new Set((selecionadosIds || []).map(Number));
+    cont.innerHTML = monitoradoresDisponiveis.map(u =>
+        '<label>' +
+            '<input type="checkbox" name="monitoradoresIds" value="' + u.id + '"' +
+            (sel.has(u.id) ? ' checked' : '') + '>' +
+            '<span><strong>' + escapar(u.nome) + '</strong> <small>(' + escapar(u.usuario) + ')</small></span>' +
+        '</label>'
+    ).join('');
+}
+
+function atualizarCamposPorTipo() {
+    const tipo = document.getElementById('select-tipo').value;
+    const campoPorta = document.getElementById('campo-porta');
+    const inputPorta = campoPorta.querySelector('input');
+    if (tipo === 'ping') {
+        campoPorta.style.display = 'none';
+        inputPorta.required = false;
+        inputPorta.value = '';
+    } else {
+        campoPorta.style.display = '';
+        inputPorta.required = true;
+        // Pre-preenche porta padrão quando vazia
+        if (!inputPorta.value) {
+            inputPorta.value = tipo === 'http' ? 80 : tipo === 'https' ? 443 : '';
+        }
+    }
+}
+
+function resetarForm() {
+    const f = document.getElementById('form-servidor');
+    f.reset();
+    f.id.value = '';
+    document.getElementById('titulo-form').innerHTML =
+        window.icones.svg('adicionar') + ' Adicionar novo servidor';
+    document.getElementById('texto-salvar').textContent = 'Salvar';
+    f.ativo.checked = true;
+    renderizarListaMonitoradores([]);
+    atualizarCamposPorTipo();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function preencherFormEdicao(s) {
+    const f = document.getElementById('form-servidor');
+    f.id.value = s.id;
+    f.nome.value = s.nome || '';
+    f.host.value = s.host || '';
+    f.descricao.value = s.descricao || '';
+    f.tipo.value = s.tipo || 'ping';
+    f.porta.value = s.porta == null ? '' : s.porta;
+    f.intervaloSeg.value = s.intervaloSeg == null ? '' : s.intervaloSeg;
+    f.ativo.checked = !!s.ativo;
+    renderizarListaMonitoradores(s.monitoradoresIds || []);
+    atualizarCamposPorTipo();
+    document.getElementById('titulo-form').innerHTML =
+        window.icones.svg('configuracoes') + ' Editar servidor';
+    document.getElementById('texto-salvar').textContent = 'Salvar';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function rotuloTipo(tipo) {
+    if (tipo === 'http') return 'HTTP';
+    if (tipo === 'https') return 'HTTPS';
+    if (tipo === 'tcp') return 'TCP';
+    return 'PING';
+}
+
+async function carregar() {
+    const resp = await fetch('/api/servidores').then(r => r.json());
+    const cont = document.getElementById('container-tabela');
+    if (!resp.servidores || resp.servidores.length === 0) {
+        cont.innerHTML =
+            '<div class="estado-vazio">' +
+                window.icones.svg('servidor', 'icone-grande') +
+                '<h3>Nenhum servidor cadastrado</h3>' +
+                '<p>Use o formulário acima para adicionar o primeiro.</p>' +
+            '</div>';
+        return;
+    }
+    let html = '<table class="tabela"><thead><tr>' +
+        '<th>Nome</th><th>Tipo</th><th>Host / Porta</th><th>Status</th><th>Ativo</th><th style="text-align:right">Ações</th>' +
+        '</tr></thead><tbody>';
+    for (const s of resp.servidores) {
+        const portaTxt = s.porta != null ? ':' + s.porta : '';
+        html += '<tr>' +
+            '<td><strong>' + escapar(s.nome) + '</strong>' +
+                (s.descricao ? '<br><small>' + escapar(s.descricao) + '</small>' : '') + '</td>' +
+            '<td><span class="tag-tipo">' + rotuloTipo(s.tipo) + '</span></td>' +
+            '<td><code>' + escapar(s.host) + escapar(portaTxt) + '</code></td>' +
+            '<td><span class="badge badge-' + s.statusAtual + '">' + s.statusAtual + '</span></td>' +
+            '<td>' + (s.ativo ? 'Sim' : 'Não') + '</td>' +
+            '<td style="text-align:right;white-space:nowrap">' +
+                '<div class="acoes" style="display:inline-flex;justify-content:flex-end">' +
+                    '<button class="btn-acao-icone" data-acao="editar" data-id="' + s.id + '" data-tooltip="Editar servidor">' +
+                        window.icones.svg('configuracoes', 'icone-sm') + '</button>' +
+                    '<button class="btn-acao-icone" data-acao="toggle" data-id="' + s.id + '" data-tooltip="' + (s.ativo ? 'Pausar' : 'Ativar') + '">' +
+                        window.icones.svg(s.ativo ? 'pausa' : 'play', 'icone-sm') + '</button>' +
+                    '<button class="btn-acao-icone perigo" data-acao="excluir" data-id="' + s.id + '" data-tooltip="Excluir servidor">' +
+                        window.icones.svg('excluir', 'icone-sm') + '</button>' +
+                '</div>' +
+            '</td></tr>';
+    }
+    html += '</tbody></table>';
+    cont.innerHTML = html;
+    aplicarFiltroBusca();
+
+    cont.querySelectorAll('[data-acao]').forEach(b => b.addEventListener('click', async (ev) => {
+        const btn = ev.currentTarget;
+        const id = btn.dataset.id;
+        const acao = btn.dataset.acao;
+        if (acao === 'editar') {
+            const r = await fetch('/api/servidores/' + id).then(r => r.json()).catch(() => null);
+            if (r && r.servidor) preencherFormEdicao(r.servidor);
+            else mostrarMsg('Erro ao carregar servidor.', 'erro');
+            return;
+        }
+        if (acao === 'excluir') {
+            const ok = await window.utils.confirmar({
+                titulo: 'Excluir servidor',
+                mensagem: 'Esta ação não pode ser desfeita. O servidor e todo o seu histórico serão removidos.',
+                textoOk: 'Excluir',
+                textoCancelar: 'Cancelar',
+                perigo: true,
+            });
+            if (!ok) return;
+        }
+        const url = '/api/servidores/' + id + (acao === 'toggle' ? '/toggle' : '');
+        const method = acao === 'toggle' ? 'PATCH' : 'DELETE';
+        const r = await fetch(url, { method }).then(r => r.json());
+        if (r.ok) { mostrarMsg('Operação concluída.', 'ok'); carregar(); }
+        else mostrarMsg('Erro: ' + r.erro, 'erro');
+    }));
+}
+
+document.getElementById('btn-logout').addEventListener('click', async () => {
+    await fetch('/api/logout', { method: 'POST' });
+    location.href = '/login.html';
+});
+
+document.getElementById('select-tipo').addEventListener('change', atualizarCamposPorTipo);
+document.getElementById('btn-cancelar').addEventListener('click', resetarForm);
+
+document.getElementById('form-servidor').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.target;
+    const btn = document.getElementById('btn-salvar');
+    const id = f.id.value;
+    const monitoradoresIds = Array.from(
+        document.querySelectorAll('input[name=monitoradoresIds]:checked')
+    ).map(c => Number(c.value));
+
+    const dados = {
+        nome: f.nome.value.trim(),
+        host: f.host.value.trim(),
+        descricao: f.descricao.value.trim(),
+        tipo: f.tipo.value,
+        porta: f.porta.value ? Number(f.porta.value) : null,
+        intervaloSeg: f.intervaloSeg.value ? Number(f.intervaloSeg.value) : null,
+        monitoradoresIds: monitoradoresIds,
+        ativo: f.ativo.checked,
+    };
+
+    const url = id ? '/api/servidores/' + id : '/api/servidores';
+    const method = id ? 'PATCH' : 'POST';
+
+    window.utils.botaoCarregando(btn, true);
+    let r;
+    try {
+        r = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados),
+        }).then(r => r.json());
+    } catch (e) {
+        r = { erro: 'falha_rede' };
+    } finally {
+        window.utils.botaoCarregando(btn, false);
+    }
+
+    if (r.ok) {
+        mostrarMsg(id ? 'Servidor atualizado.' : 'Servidor cadastrado com sucesso.', 'ok');
+        resetarForm();
+        carregar();
+    } else {
+        const msgs = {
+            campos_obrigatorios: 'Preencha nome e host.',
+            host_invalido: 'Host inválido. Use IP (ex: 192.168.1.1) ou domínio (ex: exemplo.com).',
+            tipo_invalido: 'Tipo inválido.',
+            porta_obrigatoria: 'Informe a porta (obrigatória para HTTP/HTTPS/TCP).',
+            porta_invalida: 'Porta inválida (1 a 65535).',
+            intervalo_invalido: 'Intervalo inválido (entre 5 e 86400 segundos).',
+            nao_encontrado: 'Servidor não encontrado.',
+            falha_rede: 'Falha de conexão. Tente novamente.',
+        };
+        mostrarMsg(msgs[r.erro] || ('Erro: ' + r.erro), 'erro');
+    }
+});
+
+// Busca/filtro na tabela de servidores
+let servidoresCache = [];
+function aplicarFiltroBusca() {
+    const termo = (document.getElementById('busca-servidor').value || '').trim().toLowerCase();
+    const linhas = document.querySelectorAll('#container-tabela tbody tr');
+    let visiveis = 0;
+    linhas.forEach((tr) => {
+        const txt = tr.textContent.toLowerCase();
+        const ok = !termo || txt.includes(termo);
+        tr.style.display = ok ? '' : 'none';
+        if (ok) visiveis++;
+    });
+    const cont = document.getElementById('contador-busca');
+    cont.textContent = termo ? (visiveis + ' / ' + linhas.length) : '';
+}
+document.getElementById('busca-servidor').addEventListener('input', aplicarFiltroBusca);
+
+carregarUsuario();
+window.addEventListener('DOMContentLoaded', () => {
+    carregarMonitoradores();
+    atualizarCamposPorTipo();
+    carregar();
+    setInterval(carregar, 30000);
+});
+</script>
+</body>
+</html>

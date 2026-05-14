@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Entrar - Monitoramento de Servidores</title>
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/tema.js"></script>
+<script src="/assets/icones.js" defer></script>
+<script src="/assets/utils.js" defer></script>
+</head>
+<body class="tela-login">
+    <button type="button" class="btn-icone-topo tema-flutuante" onclick="alternarTema()" title="Alternar tema">
+        <span class="ico-sol" data-icone="sol"></span>
+        <span class="ico-lua" data-icone="lua"></span>
+    </button>
+
+    <form id="form-login" class="card-login" autocomplete="off">
+        <div class="logo-login" data-icone="logo"></div>
+        <h1>Monitoramento de Servidores</h1>
+        <p class="subtitulo">Entre com seu usuário para acessar o painel.</p>
+
+        <div id="alerta" class="alerta alerta-erro" style="display:none"></div>
+
+        <label>
+            <span>Usuário</span>
+            <input type="text" name="usuario" required autofocus>
+        </label>
+        <label>
+            <span>Senha</span>
+            <input type="password" name="senha" required data-toggle-senha>
+        </label>
+
+        <button type="submit" class="btn btn-primario" style="justify-content:center">Entrar</button>
+
+        <p class="link-rodape">
+            <a href="/esqueci-senha.html">Esqueci minha senha</a>
+        </p>
+    </form>
+
+<script>
+(async () => {
+    const est = await fetch('/api/estado').then(r => r.json());
+    if (!est.instalado) { location.href = '/install.html'; return; }
+    if (est.autenticado) { location.href = '/painel.html'; }
+})();
+
+document.getElementById('form-login').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('button[type=submit]');
+    const alerta = document.getElementById('alerta');
+    alerta.style.display = 'none';
+
+    if (window.utils) window.utils.botaoCarregando(btn, true);
+    let json;
+    try {
+        const resp = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                usuario: form.usuario.value.trim(),
+                senha: form.senha.value,
+            }),
+        });
+        json = await resp.json();
+    } catch (err) {
+        json = { erro: 'falha_rede' };
+    } finally {
+        if (window.utils) window.utils.botaoCarregando(btn, false);
+    }
+    if (json.ok) {
+        location.href = '/painel.html';
+    } else {
+        alerta.textContent = json.erro === 'credenciais_invalidas'
+            ? 'Usuário ou senha incorretos.'
+            : (json.erro === 'falha_rede' ? 'Falha de conexão. Tente novamente.' : 'Erro ao entrar.');
+        alerta.style.display = 'block';
+    }
+});
+</script>
+</body>
+</html>

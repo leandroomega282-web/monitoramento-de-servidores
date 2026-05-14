@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Redefinir senha - Monitoramento de Servidores</title>
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/tema.js"></script>
+<script src="/assets/icones.js" defer></script>
+<script src="/assets/utils.js" defer></script>
+</head>
+<body class="tela-login">
+    <button type="button" class="btn-icone-topo tema-flutuante" onclick="alternarTema()" title="Alternar tema">
+        <span class="ico-sol" data-icone="sol"></span>
+        <span class="ico-lua" data-icone="lua"></span>
+    </button>
+
+    <div class="card-login" id="container">
+        <div class="logo-login" data-icone="chave"></div>
+        <h1>Redefinir senha</h1>
+        <p class="subtitulo" id="subtitulo">Validando link...</p>
+
+        <div id="alerta" class="alerta alerta-erro" style="display:none"></div>
+
+        <form id="form-redefinir" class="form-vertical" autocomplete="off" style="display:none">
+            <label>
+                <span>Nova senha (mínimo 6 caracteres)</span>
+                <input type="password" name="senha" required minlength="6" data-toggle-senha autocomplete="new-password" autofocus>
+            </label>
+            <label>
+                <span>Confirmar nova senha</span>
+                <input type="password" name="senha2" required minlength="6" data-toggle-senha autocomplete="new-password">
+            </label>
+
+            <button type="submit" class="btn btn-primario" style="justify-content:center">Salvar nova senha</button>
+        </form>
+
+        <p class="link-rodape" id="rodape">
+            <a href="/login.html">Voltar para o login</a>
+        </p>
+    </div>
+
+<script>
+function escapar(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+const params = new URLSearchParams(location.search);
+const token = params.get('token');
+
+async function inicializar() {
+    if (!token) {
+        mostrarErroToken('Link inválido. Solicite um novo link em "Esqueci minha senha".');
+        return;
+    }
+    let r;
+    try {
+        r = await fetch('/api/recuperar-senha/validar?token=' + encodeURIComponent(token)).then(r => r.json());
+    } catch (e) {
+        mostrarErroToken('Falha de conexão. Recarregue a página.');
+        return;
+    }
+    if (!r.ok) {
+        mostrarErroToken('Este link é inválido ou já expirou. Solicite um novo em "Esqueci minha senha".');
+        return;
+    }
+    document.getElementById('subtitulo').innerHTML =
+        'Criando nova senha para <strong style="color:var(--texto)">' + escapar(r.nome) + '</strong> ' +
+        '(<code>' + escapar(r.usuario) + '</code>).';
+    document.getElementById('form-redefinir').style.display = '';
+    if (window.utils) {
+        const f = document.getElementById('form-redefinir');
+        window.utils.validarSenhasConferem(f.senha, f.senha2);
+    }
+}
+
+function mostrarErroToken(mensagem) {
+    document.getElementById('container').innerHTML =
+        '<div class="logo-login" style="background:linear-gradient(135deg,#dc2626,#ef4444);box-shadow:0 8px 24px rgba(239,68,68,0.35)" data-icone="erro"></div>' +
+        '<h1 style="text-align:center">Link inválido</h1>' +
+        '<p class="subtitulo">' + escapar(mensagem) + '</p>' +
+        '<a href="/esqueci-senha.html" class="btn btn-primario" style="justify-content:center;text-decoration:none">Solicitar novo link</a>' +
+        '<a href="/login.html" class="btn" style="justify-content:center;text-decoration:none">Voltar ao login</a>';
+    window.icones.renderizar();
+}
+
+document.getElementById('form-redefinir').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('button[type=submit]');
+    const alerta = document.getElementById('alerta');
+    alerta.style.display = 'none';
+
+    if (form.senha.value !== form.senha2.value) {
+        alerta.textContent = 'As senhas não conferem.';
+        alerta.style.display = 'block';
+        return;
+    }
+
+    if (window.utils) window.utils.botaoCarregando(btn, true);
+    let json;
+    try {
+        const resp = await fetch('/api/recuperar-senha/redefinir', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: token, novaSenha: form.senha.value }),
+        });
+        json = await resp.json();
+    } catch (err) {
+        json = { erro: 'falha_rede' };
+    } finally {
+        if (window.utils) window.utils.botaoCarregando(btn, false);
+    }
+
+    if (json.ok) {
+        document.getElementById('container').innerHTML =
+            '<div class="logo-login" style="background:linear-gradient(135deg,#16a34a,#22c55e);box-shadow:0 8px 24px rgba(34,197,94,0.35)" data-icone="check"></div>' +
+            '<h1 style="text-align:center">Senha redefinida!</h1>' +
+            '<p class="subtitulo">Você já pode entrar com a nova senha.</p>' +
+            '<p style="text-align:center;color:var(--texto-fraco)">Seu usuário: <strong style="color:var(--texto)">' + escapar(json.usuario) + '</strong></p>' +
+            '<a href="/login.html" class="btn btn-primario" style="justify-content:center;text-decoration:none">Ir para o login</a>';
+        window.icones.renderizar();
+    } else {
+        const msgs = {
+            campos_obrigatorios: 'Preencha a nova senha.',
+            senha_curta: 'Senha precisa ter pelo menos 6 caracteres.',
+            token_invalido: 'Este link expirou. Solicite um novo em "Esqueci minha senha".',
+            falha_rede: 'Falha de conexão. Tente novamente.',
+        };
+        alerta.textContent = msgs[json.erro] || 'Erro: ' + (json.erro || 'desconhecido');
+        alerta.style.display = 'block';
+    }
+});
+
+inicializar();
+</script>
+</body>
+</html>

@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Minha conta - Monitoramento de Servidores</title>
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/tema.js"></script>
+<script src="/assets/icones.js" defer></script>
+<script src="/assets/utils.js" defer></script>
+</head>
+<body>
+<header class="topo">
+    <div class="topo-titulo">
+        <span class="icone-logo" data-icone="logo"></span>
+        <strong>Monitoramento de Servidores</strong>
+    </div>
+    <nav class="topo-nav">
+        <a href="/painel.html"><span data-icone="painel"></span> Painel</a>
+        <a href="/servidores.html"><span data-icone="servidor"></span> Servidores</a>
+        <a href="/logs.html"><span data-icone="logs"></span> Logs</a>
+        <a href="/usuarios.html" id="link-usuarios" style="display:none"><span data-icone="usuarios"></span> Usuários</a>
+        <a href="/configuracoes.html" id="link-config" style="display:none"><span data-icone="configuracoes"></span> Configurações</a>
+        <a href="/minha-conta.html" class="ativo"><span data-icone="usuario"></span> Minha conta</a>
+        <span class="topo-user">
+            <strong id="nome-usuario">...</strong>
+            <span class="tag-admin" id="tag-admin" style="display:none">admin</span>
+        </span>
+        <button type="button" class="btn-icone-topo" onclick="alternarTema()" data-tooltip="Alternar tema (T)">
+            <span class="ico-sol" data-icone="sol"></span>
+            <span class="ico-lua" data-icone="lua"></span>
+        </button>
+        <button type="button" class="btn-icone-topo" id="btn-logout" data-tooltip="Sair">
+            <span data-icone="sair"></span>
+        </button>
+    </nav>
+</header>
+
+<main class="conteudo">
+
+<section class="painel-cabecalho">
+    <div>
+        <h1>Minha conta</h1>
+        <p class="sub">Altere seu nome, login, senha e código de recuperação.</p>
+    </div>
+    <a href="/painel.html" class="btn">Voltar ao painel</a>
+</section>
+
+<div id="alerta-msg"></div>
+
+<section class="cartao">
+    <h2><span data-icone="usuario"></span> Dados pessoais</h2>
+    <p class="sub" style="margin-bottom:18px">Para confirmar qualquer alteração, informe a senha atual.</p>
+
+    <form id="form-perfil" class="form-grid" autocomplete="off">
+        <label>
+            <span>Nome completo</span>
+            <input type="text" name="nome" maxlength="100">
+        </label>
+        <label>
+            <span>Login (usuário)</span>
+            <input type="text" name="usuario" pattern="[a-zA-Z0-9_.\-]{3,50}">
+        </label>
+        <label class="full">
+            <span>Email (para receber alertas de servidor)</span>
+            <input type="email" name="email" maxlength="150" placeholder="exemplo@dominio.com">
+        </label>
+        <label>
+            <span>Nova senha (deixe em branco para não trocar)</span>
+            <input type="password" data-toggle-senha name="novaSenha" minlength="6" autocomplete="new-password">
+        </label>
+        <label>
+            <span>Confirmar nova senha</span>
+            <input type="password" data-toggle-senha name="novaSenha2" minlength="6" autocomplete="new-password">
+        </label>
+        <label class="full">
+            <span>Senha atual (obrigatória)</span>
+            <input type="password" data-toggle-senha name="senhaAtual" required autocomplete="current-password">
+        </label>
+        <div class="full">
+            <button type="submit" class="btn btn-primario">Salvar alterações</button>
+        </div>
+    </form>
+</section>
+
+</main>
+<footer class="rodape"><small>Monitoramento de Servidores - Node.js</small></footer>
+
+<script>
+function escapar(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function mostrarMsg(texto, tipo) {
+    const div = document.getElementById('alerta-msg');
+    const cls = tipo === 'ok' ? 'alerta-ok' : (tipo === 'aviso' ? 'alerta-aviso' : 'alerta-erro');
+    const ico = tipo === 'ok' ? 'ok' : (tipo === 'aviso' ? 'aviso' : 'erro');
+    div.innerHTML = '<div class="alerta ' + cls + '"><span data-icone="' + ico + '"></span><div>' + escapar(texto) + '</div></div>';
+    window.icones.renderizar(div);
+    setTimeout(() => { div.innerHTML = ''; }, 5000);
+}
+
+async function carregar() {
+    const est = await fetch('/api/estado').then(r => r.json());
+    if (!est.autenticado) { location.href = '/login.html'; return; }
+
+    document.getElementById('nome-usuario').textContent = est.usuario.nome;
+    if (est.usuario.isAdmin) {
+        document.getElementById('tag-admin').style.display = 'inline-block';
+        document.getElementById('link-usuarios').style.display = 'inline-flex';
+        const lc = document.getElementById('link-config');
+        if (lc) lc.style.display = 'inline-flex';
+    }
+
+    const r = await fetch('/api/minha-conta').then(r => r.json());
+    if (r.usuario) {
+        document.querySelector('input[name=nome]').value = r.usuario.nome;
+        document.querySelector('input[name=usuario]').value = r.usuario.usuario;
+        document.querySelector('input[name=email]').value = r.usuario.email || '';
+    }
+}
+
+document.getElementById('btn-logout').addEventListener('click', async () => {
+    await fetch('/api/logout', { method: 'POST' });
+    location.href = '/login.html';
+});
+
+document.getElementById('form-perfil').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.target;
+    const btn = f.querySelector('button[type=submit]');
+    if (f.novaSenha.value || f.novaSenha2.value) {
+        if (f.novaSenha.value !== f.novaSenha2.value) {
+            mostrarMsg('As senhas novas não conferem.', 'erro');
+            return;
+        }
+    }
+    window.utils.botaoCarregando(btn, true);
+    let r;
+    try {
+        r = await fetch('/api/minha-conta', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                nome: f.nome.value.trim(),
+                usuario: f.usuario.value.trim(),
+                email: f.email.value.trim(),
+                novaSenha: f.novaSenha.value || undefined,
+                senhaAtual: f.senhaAtual.value,
+            }),
+        }).then(r => r.json());
+    } catch (err) {
+        r = { erro: 'falha_rede' };
+    } finally {
+        window.utils.botaoCarregando(btn, false);
+    }
+
+    if (r.ok) {
+        mostrarMsg('Dados atualizados com sucesso.', 'ok');
+        f.senhaAtual.value = '';
+        f.novaSenha.value = '';
+        f.novaSenha2.value = '';
+        document.getElementById('nome-usuario').textContent = r.usuario.nome;
+    } else {
+        const msgs = {
+            senha_atual_obrigatoria: 'Informe a senha atual.',
+            senha_atual_incorreta: 'Senha atual incorreta.',
+            senha_curta: 'Nova senha precisa ter pelo menos 6 caracteres.',
+            usuario_invalido: 'Login inválido (3-50 caracteres: letras, números, ponto, hífen, underscore).',
+            usuario_duplicado: 'Este login já está em uso por outra conta.',
+            email_invalido: 'Email inválido.',
+        };
+        mostrarMsg(msgs[r.erro] || ('Erro: ' + r.erro), 'erro');
+    }
+});
+
+carregar();
+
+window.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('form-perfil');
+    if (window.utils && form) window.utils.validarSenhasConferem(form.novaSenha, form.novaSenha2);
+});
+</script>
+</body>
+</html>

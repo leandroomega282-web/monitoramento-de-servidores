@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Logs - Monitoramento de Servidores</title>
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/tema.js"></script>
+<script src="/assets/icones.js" defer></script>
+<script src="/assets/utils.js" defer></script>
+</head>
+<body>
+<header class="topo">
+    <div class="topo-titulo">
+        <span class="icone-logo" data-icone="logo"></span>
+        <strong>Monitoramento de Servidores</strong>
+    </div>
+    <nav class="topo-nav">
+        <a href="/painel.html"><span data-icone="painel"></span> Painel</a>
+        <a href="/servidores.html"><span data-icone="servidor"></span> Servidores</a>
+        <a href="/logs.html" class="ativo"><span data-icone="logs"></span> Logs</a>
+        <a href="/usuarios.html" id="link-usuarios" style="display:none"><span data-icone="usuarios"></span> Usuários</a>
+        <a href="/configuracoes.html" id="link-config" style="display:none"><span data-icone="configuracoes"></span> Configurações</a>
+        <a href="/minha-conta.html"><span data-icone="usuario"></span> Minha conta</a>
+        <span class="topo-user">
+            <strong id="nome-usuario">...</strong>
+            <span class="tag-admin" id="tag-admin" style="display:none">admin</span>
+        </span>
+        <button type="button" class="btn-icone-topo" onclick="alternarTema()" data-tooltip="Alternar tema (T)">
+            <span class="ico-sol" data-icone="sol"></span>
+            <span class="ico-lua" data-icone="lua"></span>
+        </button>
+        <button type="button" class="btn-icone-topo" id="btn-logout" data-tooltip="Sair">
+            <span data-icone="sair"></span>
+        </button>
+    </nav>
+</header>
+
+<main class="conteudo">
+
+<section class="painel-cabecalho">
+    <div>
+        <h1>Logs de Monitoramento</h1>
+        <p class="sub"><span id="total-registros">0</span> registro(s) encontrado(s)</p>
+    </div>
+</section>
+
+<section class="cartao">
+    <form id="form-filtros" class="form-grid">
+        <label>
+            <span>Servidor</span>
+            <select name="servidorId" id="filtro-servidor">
+                <option value="">-- Todos --</option>
+            </select>
+        </label>
+        <label>
+            <span>Data início</span>
+            <input type="date" name="dataInicio" placeholder="dd/mm/aaaa">
+        </label>
+        <label>
+            <span>Data fim</span>
+            <input type="date" name="dataFim" placeholder="dd/mm/aaaa">
+        </label>
+        <div class="full" style="display:flex;gap:8px;align-items:center">
+            <button type="submit" class="btn btn-primario">
+                <span data-icone="filtro"></span> Filtrar
+            </button>
+            <button type="button" class="btn" id="btn-limpar">
+                <span data-icone="excluir"></span> Limpar
+            </button>
+            <button type="button" class="btn btn-link" id="btn-atualizar" data-tooltip="Atualizar agora (R)">
+                <span data-icone="refresh"></span> Atualizar
+            </button>
+            <label class="check" style="margin-left:auto;font-size:0.88rem;color:var(--texto-fraco)">
+                <input type="checkbox" id="auto-atualizar"> Auto-atualizar (10s)
+            </label>
+        </div>
+    </form>
+</section>
+
+<div id="alerta-msg"></div>
+
+<section>
+    <div id="container-tabela">
+        <div class="alerta alerta-info"><span data-icone="info"></span><div>Carregando...</div></div>
+    </div>
+</section>
+
+</main>
+<footer class="rodape"><small>Monitoramento de Servidores - Node.js</small></footer>
+
+<script>
+function escapar(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function mostrarMsg(texto, tipo) {
+    const div = document.getElementById('alerta-msg');
+    const cls = tipo === 'ok' ? 'alerta-ok' : 'alerta-erro';
+    const ico = tipo === 'ok' ? 'ok' : 'erro';
+    div.innerHTML = '<div class="alerta ' + cls + '"><span data-icone="' + ico + '"></span><div>' + escapar(texto) + '</div></div>';
+    window.icones.renderizar(div);
+    setTimeout(() => { div.innerHTML = ''; }, 4000);
+}
+
+async function carregarUsuario() {
+    const est = await fetch('/api/estado').then(r => r.json());
+    if (!est.autenticado) { location.href = '/login.html'; return; }
+    document.getElementById('nome-usuario').textContent = est.usuario.nome;
+    if (est.usuario.isAdmin) {
+        document.getElementById('tag-admin').style.display = 'inline-block';
+        document.getElementById('link-usuarios').style.display = 'inline-flex';
+        const lc = document.getElementById('link-config');
+        if (lc) lc.style.display = 'inline-flex';
+    }
+}
+
+async function popularSelectServidores() {
+    const r = await fetch('/api/servidores').then(r => r.json()).catch(() => null);
+    if (!r || !r.servidores) return;
+    const sel = document.getElementById('filtro-servidor');
+    r.servidores.forEach((s) => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.nome;
+        sel.appendChild(opt);
+    });
+}
+
+function renderizarTabela(lista) {
+    const cont = document.getElementById('container-tabela');
+    if (!lista || lista.length === 0) {
+        cont.innerHTML =
+            '<div class="estado-vazio">' +
+                window.icones.svg('logs', 'icone-grande') +
+                '<h3>Nenhum registro encontrado</h3>' +
+                '<p>Ajuste os filtros ou aguarde novas verificações.</p>' +
+            '</div>';
+        return;
+    }
+    let html = '<table class="tabela"><thead><tr>' +
+        '<th>Data / Hora</th><th>Servidor</th><th>Status</th>' +
+        '<th>Resposta</th><th>Mensagem</th>' +
+        '</tr></thead><tbody>';
+    for (const v of lista) {
+        const dt = new Date(v.criadoEm).toLocaleString('pt-BR');
+        html += '<tr>' +
+            '<td><small>' + escapar(dt) + '</small></td>' +
+            '<td><strong>' + escapar(v.servidorNome) + '</strong>' +
+                (v.servidorHost ? '<br><small>' + escapar(v.servidorHost) + '</small>' : '') + '</td>' +
+            '<td><span class="badge badge-' + escapar(v.status) + '">' + escapar(v.status) + '</span></td>' +
+            '<td>' + (v.tempoMs != null ? v.tempoMs + ' ms' : '<span style="color:var(--texto-muito-fraco)">--</span>') + '</td>' +
+            '<td><small>' + escapar(v.mensagem || '--') + '</small></td>' +
+            '</tr>';
+    }
+    html += '</tbody></table>';
+    cont.innerHTML = html;
+}
+
+async function carregar() {
+    const f = document.getElementById('form-filtros');
+    const params = new URLSearchParams();
+    if (f.servidorId.value) params.set('servidorId', f.servidorId.value);
+    // Data inicio: 00:00 local; Data fim: 23:59:59 local (cobre o dia inteiro)
+    if (f.dataInicio.value) {
+        params.set('dataInicio', new Date(f.dataInicio.value + 'T00:00:00').toISOString());
+    }
+    if (f.dataFim.value) {
+        params.set('dataFim', new Date(f.dataFim.value + 'T23:59:59.999').toISOString());
+    }
+    params.set('limite', '500');
+
+    try {
+        const r = await fetch('/api/logs?' + params.toString()).then(r => r.json());
+        if (!r.ok) { mostrarMsg('Erro ao carregar logs.', 'erro'); return; }
+        document.getElementById('total-registros').textContent = r.total;
+        renderizarTabela(r.verificacoes);
+    } catch (e) {
+        mostrarMsg('Falha de conexão.', 'erro');
+    }
+}
+
+document.getElementById('btn-logout').addEventListener('click', async () => {
+    await fetch('/api/logout', { method: 'POST' });
+    location.href = '/login.html';
+});
+
+document.getElementById('form-filtros').addEventListener('submit', (e) => {
+    e.preventDefault();
+    carregar();
+});
+document.getElementById('btn-limpar').addEventListener('click', () => {
+    document.getElementById('form-filtros').reset();
+    carregar();
+});
+document.getElementById('btn-atualizar').addEventListener('click', carregar);
+
+let autoTimer = null;
+document.getElementById('auto-atualizar').addEventListener('change', (e) => {
+    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+    if (e.target.checked) {
+        autoTimer = setInterval(carregar, 10000);
+    }
+});
+
+carregarUsuario();
+window.addEventListener('DOMContentLoaded', async () => {
+    await popularSelectServidores();
+    carregar();
+    if (window.utils) {
+        window.utils.registrarAtalho('r', () => carregar(), 'Atualizar logs');
+    }
+});
+</script>
+</body>
+</html>

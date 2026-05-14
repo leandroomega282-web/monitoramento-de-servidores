@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Configurações - Monitoramento de Servidores</title>
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/tema.js"></script>
+<script src="/assets/icones.js" defer></script>
+<script src="/assets/utils.js" defer></script>
+</head>
+<body>
+<header class="topo">
+    <div class="topo-titulo">
+        <span class="icone-logo" data-icone="logo"></span>
+        <strong>Monitoramento de Servidores</strong>
+    </div>
+    <nav class="topo-nav">
+        <a href="/painel.html"><span data-icone="painel"></span> Painel</a>
+        <a href="/servidores.html"><span data-icone="servidor"></span> Servidores</a>
+        <a href="/logs.html"><span data-icone="logs"></span> Logs</a>
+        <a href="/usuarios.html" id="link-usuarios" style="display:none"><span data-icone="usuarios"></span> Usuários</a>
+        <a href="/configuracoes.html" id="link-config" class="ativo" style="display:none"><span data-icone="configuracoes"></span> Configurações</a>
+        <a href="/minha-conta.html"><span data-icone="usuario"></span> Minha conta</a>
+        <span class="topo-user">
+            <strong id="nome-usuario">...</strong>
+            <span class="tag-admin" id="tag-admin" style="display:none">admin</span>
+        </span>
+        <button type="button" class="btn-icone-topo" onclick="alternarTema()" data-tooltip="Alternar tema (T)">
+            <span class="ico-sol" data-icone="sol"></span>
+            <span class="ico-lua" data-icone="lua"></span>
+        </button>
+        <button type="button" class="btn-icone-topo" id="btn-logout" data-tooltip="Sair">
+            <span data-icone="sair"></span>
+        </button>
+    </nav>
+</header>
+
+<main class="conteudo">
+
+<section class="painel-cabecalho">
+    <div>
+        <h1>Configurações</h1>
+        <p class="sub">Configure o servidor de email (SMTP) para envio de alertas quando servidores caírem ou voltarem.</p>
+    </div>
+    <a href="/painel.html" class="btn">Voltar ao painel</a>
+</section>
+
+<div id="alerta-msg"></div>
+
+<section class="cartao">
+    <h2><span data-icone="configuracoes"></span> SMTP — servidor de email</h2>
+    <p class="sub" style="margin-bottom:18px">
+        Os alertas por email só são enviados quando o SMTP está configurado.
+        Usuários precisam ter um email cadastrado em <a href="/usuarios.html">Usuários</a>
+        ou <a href="/minha-conta.html">Minha conta</a> para receber.
+    </p>
+
+    <div id="status-config" class="alerta alerta-info" style="margin-bottom:18px">
+        <span data-icone="info"></span>
+        <div><strong>Status:</strong> <span id="texto-status">verificando...</span></div>
+    </div>
+
+    <form id="form-smtp" class="form-grid" autocomplete="off">
+        <div class="form-secao">
+            <h3>Servidor</h3>
+            <span class="form-secao-sub">endereço e porta do SMTP</span>
+        </div>
+        <label>
+            <span>Host SMTP *</span>
+            <input type="text" name="host" required maxlength="200" placeholder="smtp.gmail.com">
+        </label>
+        <label>
+            <span>Porta *</span>
+            <input type="number" name="porta" required min="1" max="65535" placeholder="587">
+        </label>
+        <label class="check full">
+            <input type="checkbox" name="seguro" value="1">
+            <span>Conexão SSL/TLS (use para porta 465). Para 587 com STARTTLS deixe desmarcado.</span>
+        </label>
+
+        <div class="form-secao">
+            <h3>Autenticação</h3>
+            <span class="form-secao-sub">credenciais para login no SMTP</span>
+        </div>
+        <label>
+            <span>Usuário</span>
+            <input type="text" name="usuario" maxlength="200" placeholder="seu-email@gmail.com" autocomplete="off">
+        </label>
+        <label>
+            <span>Senha</span>
+            <input type="password" name="senha" data-toggle-senha maxlength="500" placeholder="deixe em branco para manter a atual" autocomplete="new-password">
+            <small class="help">Para Gmail, use uma "senha de aplicativo" gerada no Google.</small>
+        </label>
+        <label class="full">
+            <span>Remetente (From)</span>
+            <input type="email" name="remetente" maxlength="200" placeholder="alertas@suaempresa.com (padrão: igual ao usuário)">
+        </label>
+
+        <div class="full" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+            <button type="submit" class="btn btn-salvar" id="btn-salvar-smtp">
+                <span data-icone="salvar"></span> Salvar configuração
+            </button>
+            <button type="button" class="btn" id="btn-testar">
+                <span data-icone="refresh"></span> Enviar email de teste
+            </button>
+        </div>
+    </form>
+</section>
+
+<section class="cartao">
+    <h2><span data-icone="info"></span> Exemplos de configuração</h2>
+    <div class="form-grid">
+        <div>
+            <h3 style="text-transform:none;letter-spacing:0;color:var(--texto)">Gmail</h3>
+            <ul style="font-size:0.9rem;color:var(--texto-fraco);padding-left:20px;line-height:1.7">
+                <li>Host: <code>smtp.gmail.com</code></li>
+                <li>Porta: <code>587</code> (SSL/TLS desmarcado)</li>
+                <li>Usuário: seu email completo</li>
+                <li>Senha: <a href="https://myaccount.google.com/apppasswords" target="_blank">senha de aplicativo</a></li>
+            </ul>
+        </div>
+        <div>
+            <h3 style="text-transform:none;letter-spacing:0;color:var(--texto)">Outlook / Office 365</h3>
+            <ul style="font-size:0.9rem;color:var(--texto-fraco);padding-left:20px;line-height:1.7">
+                <li>Host: <code>smtp-mail.outlook.com</code></li>
+                <li>Porta: <code>587</code> (SSL/TLS desmarcado)</li>
+                <li>Usuário: seu email completo</li>
+                <li>Senha: senha da conta</li>
+            </ul>
+        </div>
+        <div>
+            <h3 style="text-transform:none;letter-spacing:0;color:var(--texto)">SMTP genérico (TLS)</h3>
+            <ul style="font-size:0.9rem;color:var(--texto-fraco);padding-left:20px;line-height:1.7">
+                <li>Porta <code>465</code>: SSL/TLS <strong>marcado</strong></li>
+                <li>Porta <code>587</code>: SSL/TLS desmarcado (STARTTLS)</li>
+                <li>Porta <code>25</code>: sem autenticação (raro)</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+</main>
+<footer class="rodape"><small>Monitoramento de Servidores - Node.js</small></footer>
+
+<script>
+function escapar(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function mostrarMsg(texto, tipo) {
+    const div = document.getElementById('alerta-msg');
+    const cls = tipo === 'ok' ? 'alerta-ok' : 'alerta-erro';
+    const ico = tipo === 'ok' ? 'ok' : 'erro';
+    div.innerHTML = '<div class="alerta ' + cls + '"><span data-icone="' + ico + '"></span><div>' + escapar(texto) + '</div></div>';
+    window.icones.renderizar(div);
+    setTimeout(() => { div.innerHTML = ''; }, 5000);
+}
+
+async function carregarEstado() {
+    const est = await fetch('/api/estado').then(r => r.json());
+    if (!est.autenticado || !est.usuario.isAdmin) { location.href = '/painel.html'; return; }
+    document.getElementById('nome-usuario').textContent = est.usuario.nome;
+    document.getElementById('tag-admin').style.display = 'inline-block';
+    document.getElementById('link-usuarios').style.display = 'inline-flex';
+    document.getElementById('link-config').style.display = 'inline-flex';
+}
+
+async function carregarConfig() {
+    const r = await fetch('/api/configuracoes/smtp').then(r => r.json()).catch(() => null);
+    if (!r) { mostrarMsg('Erro ao carregar configuração.', 'erro'); return; }
+    const f = document.getElementById('form-smtp');
+    f.host.value = r.smtp.host || '';
+    f.porta.value = r.smtp.porta || 587;
+    f.usuario.value = r.smtp.usuario || '';
+    f.remetente.value = r.smtp.remetente || '';
+    f.seguro.checked = !!r.smtp.seguro;
+    f.senha.value = ''; // nunca preenche senha; placeholder explica
+
+    const status = document.getElementById('status-config');
+    const txt = document.getElementById('texto-status');
+    if (r.configurado) {
+        status.classList.remove('alerta-info', 'alerta-aviso');
+        status.classList.add('alerta-ok');
+        status.querySelector('[data-icone]').dataset.icone = 'ok';
+        status.querySelector('[data-icone]').dataset.iconeRenderizado = '';
+        txt.innerHTML = 'SMTP configurado e pronto para enviar alertas.';
+    } else {
+        status.classList.remove('alerta-info', 'alerta-ok');
+        status.classList.add('alerta-aviso');
+        status.querySelector('[data-icone]').dataset.icone = 'aviso';
+        status.querySelector('[data-icone]').dataset.iconeRenderizado = '';
+        txt.innerHTML = 'SMTP <strong>ainda não foi salvo</strong>. Preencha os campos e clique em <strong>"Salvar configuração"</strong> (não basta testar). Sem isso, alertas e recuperação de senha por email não funcionam.';
+    }
+    window.icones.renderizar(status);
+}
+
+document.getElementById('btn-logout').addEventListener('click', async () => {
+    await fetch('/api/logout', { method: 'POST' });
+    location.href = '/login.html';
+});
+
+document.getElementById('form-smtp').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.target;
+    const btn = document.getElementById('btn-salvar-smtp');
+    const dados = {
+        host: f.host.value.trim(),
+        porta: Number(f.porta.value),
+        usuario: f.usuario.value.trim(),
+        senha: f.senha.value, // pode vir vazia (mantém atual)
+        remetente: f.remetente.value.trim(),
+        seguro: f.seguro.checked,
+    };
+    window.utils.botaoCarregando(btn, true);
+    let r;
+    try {
+        r = await fetch('/api/configuracoes/smtp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados),
+        }).then(r => r.json());
+    } catch (err) {
+        r = { erro: 'falha_rede' };
+    } finally {
+        window.utils.botaoCarregando(btn, false);
+    }
+    if (r.ok) {
+        mostrarMsg('Configuração salva.', 'ok');
+        f.senha.value = '';
+        carregarConfig();
+    } else {
+        const msgs = {
+            host_obrigatorio: 'Informe o host SMTP.',
+            porta_invalida: 'Porta inválida.',
+            remetente_invalido: 'Remetente inválido.',
+            falha_rede: 'Falha de conexão.',
+        };
+        mostrarMsg(msgs[r.erro] || ('Erro: ' + r.erro), 'erro');
+    }
+});
+
+document.getElementById('btn-testar').addEventListener('click', async () => {
+    const f = document.getElementById('form-smtp');
+    if (!f.host.value.trim() || !f.porta.value) {
+        mostrarMsg('Preencha pelo menos Host e Porta antes de testar.', 'erro');
+        return;
+    }
+    // Se tem usuário mas senha em branco no form, precisa ter salvo antes (com senha)
+    // Vamos avisar localmente; backend também valida
+    if (f.usuario.value.trim() && !f.senha.value) {
+        // Verifica se há senha salva
+        const statusResp = await fetch('/api/configuracoes/smtp').then(r => r.json()).catch(() => null);
+        if (!statusResp || !statusResp.smtp.senhaConfigurada) {
+            mostrarMsg('Preencha a senha SMTP. Para Gmail use uma senha de aplicativo (não a senha normal).', 'erro');
+            return;
+        }
+    }
+    const destino = await window.utils.solicitar({
+        titulo: 'Enviar email de teste',
+        mensagem: 'Para qual endereço quer mandar o teste? Deixe em branco para usar o remetente/usuário do form.',
+        label: 'Destinatário (opcional)',
+        tipo: 'text',
+        placeholder: 'seuemail@exemplo.com',
+        textoOk: 'Enviar',
+        icone: 'refresh',
+    });
+    if (destino === null) return;
+    const btn = document.getElementById('btn-testar');
+    // Manda os valores ATUAIS do form (testa antes de salvar)
+    const corpo = {
+        para: destino || null,
+        host: f.host.value.trim(),
+        porta: Number(f.porta.value),
+        usuario: f.usuario.value.trim(),
+        senha: f.senha.value, // vazio → backend usa senha salva
+        remetente: f.remetente.value.trim(),
+        seguro: f.seguro.checked,
+    };
+    window.utils.botaoCarregando(btn, true);
+    let r;
+    try {
+        r = await fetch('/api/configuracoes/smtp/testar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(corpo),
+        }).then(r => r.json());
+    } catch (err) {
+        r = { erro: 'falha_rede' };
+    } finally {
+        window.utils.botaoCarregando(btn, false);
+    }
+    if (r.ok) {
+        mostrarMsg('Email de teste enviado! Verifique a caixa de entrada (e spam).', 'ok');
+        // Sugere salvar — muita gente esquece deste passo e a config nunca é persistida
+        setTimeout(async () => {
+            const ok = await window.utils.confirmar({
+                titulo: 'Salvar configuração?',
+                mensagem: 'Teste funcionou! Quer salvar essas configurações agora para que os alertas e a recuperação de senha por email funcionem automaticamente?',
+                textoOk: 'Sim, salvar',
+                textoCancelar: 'Depois',
+            });
+            if (ok) {
+                document.getElementById('form-smtp').dispatchEvent(new Event('submit', { cancelable: true }));
+            }
+        }, 600);
+    } else {
+        mostrarMsg('Falha no envio: ' + (r.detalhe || r.erro), 'erro');
+    }
+});
+
+carregarEstado();
+window.addEventListener('DOMContentLoaded', carregarConfig);
+</script>
+</body>
+</html>

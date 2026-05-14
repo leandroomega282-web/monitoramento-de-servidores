@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Esqueci minha senha - Monitoramento de Servidores</title>
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/tema.js"></script>
+<script src="/assets/icones.js" defer></script>
+<script src="/assets/utils.js" defer></script>
+</head>
+<body class="tela-login">
+    <button type="button" class="btn-icone-topo tema-flutuante" onclick="alternarTema()" title="Alternar tema">
+        <span class="ico-sol" data-icone="sol"></span>
+        <span class="ico-lua" data-icone="lua"></span>
+    </button>
+
+    <div class="card-login" id="container">
+        <div class="logo-login" data-icone="cadeado"></div>
+        <h1>Esqueci minha senha</h1>
+        <p class="subtitulo">Digite o email cadastrado na sua conta. Vamos enviar um link para você criar uma nova senha.</p>
+
+        <div id="alerta" class="alerta alerta-erro" style="display:none"></div>
+
+        <form id="form-esqueci" class="form-vertical" autocomplete="off">
+            <label>
+                <span>Email cadastrado</span>
+                <input type="email" name="email" required maxlength="150" placeholder="seuemail@exemplo.com" autofocus>
+            </label>
+
+            <button type="submit" class="btn btn-primario" style="justify-content:center">Enviar link de recuperação</button>
+        </form>
+
+        <p class="link-rodape">
+            <a href="/login.html">Voltar para o login</a>
+        </p>
+    </div>
+
+<script>
+document.getElementById('form-esqueci').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('button[type=submit]');
+    const alerta = document.getElementById('alerta');
+    alerta.style.display = 'none';
+
+    if (window.utils) window.utils.botaoCarregando(btn, true);
+    let json;
+    try {
+        const resp = await fetch('/api/recuperar-senha', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: form.email.value.trim() }),
+        });
+        json = await resp.json();
+    } catch (err) {
+        json = { erro: 'falha_rede' };
+    } finally {
+        if (window.utils) window.utils.botaoCarregando(btn, false);
+    }
+
+    if (json.ok) {
+        document.getElementById('container').innerHTML =
+            '<div class="logo-login" style="background:linear-gradient(135deg,#16a34a,#22c55e);box-shadow:0 8px 24px rgba(34,197,94,0.35)" data-icone="check"></div>' +
+            '<h1 style="text-align:center">Verifique seu email</h1>' +
+            '<p class="subtitulo">Se o email <strong style="color:var(--texto)">' + escapar(form.email.value.trim()) + '</strong> estiver cadastrado, você vai receber um link para criar uma nova senha em alguns instantes.</p>' +
+            '<div class="alerta alerta-info">' +
+                '<span data-icone="info"></span>' +
+                '<div>O link expira em <strong>1 hora</strong>. Não se esqueça de checar a caixa de spam.</div>' +
+            '</div>' +
+            '<a href="/login.html" class="btn btn-primario" style="justify-content:center;text-decoration:none">Voltar ao login</a>';
+        window.icones.renderizar();
+    } else {
+        const msgs = {
+            email_invalido: 'Digite um email válido.',
+            smtp_nao_configurado: 'Recuperação por email não está disponível no momento. Contate um administrador.',
+            falha_rede: 'Falha de conexão. Tente novamente.',
+        };
+        alerta.textContent = msgs[json.erro] || (json.mensagem || 'Erro: ' + (json.erro || 'desconhecido'));
+        alerta.style.display = 'block';
+    }
+});
+
+function escapar(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+</script>
+</body>
+</html>
