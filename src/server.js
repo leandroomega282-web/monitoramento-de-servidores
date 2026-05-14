@@ -82,6 +82,7 @@ app.use(
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
         scriptSrc: ["'self'", "'unsafe-inline'"], // inline scripts em paginas
+        scriptSrcAttr: ["'unsafe-inline'"], // permite onclick="" nos botoes (sem isso, o default 'none' do helmet bloqueia)
         imgSrc: ["'self'", "data:"],
         connectSrc: ["'self'"],
         frameAncestors: ["'none'"], // bloqueia clickjacking
