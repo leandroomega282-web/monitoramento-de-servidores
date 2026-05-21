@@ -215,6 +215,11 @@ app.use((req, res, next) => {
 // API - Estado / instalacao
 // ============================================================
 
+// Healthcheck publico (Railway/Render/etc) — nao requer sessao
+app.get("/healthz", (req, res) => {
+  res.status(200).json({ ok: true });
+});
+
 app.get("/api/estado", (req, res) => {
   res.json({
     instalado: db.temUsuarios(),
@@ -1026,11 +1031,21 @@ app.use((req, res) => {
 // Subir o servidor
 // ============================================================
 
-app.listen(PORTA, () => {
-  console.log(`Monitoramento de Servidores rodando em http://localhost:${PORTA}`);
+// Bind explicito em 0.0.0.0 para funcionar atras de proxy (Railway/Render/etc).
+// Sem isso, em alguns ambientes o Node escuta so em IPv6 e o proxy retorna 502.
+app.listen(PORTA, "0.0.0.0", () => {
+  console.log(`Monitoramento de Servidores rodando na porta ${PORTA}`);
   if (!db.temUsuarios()) {
     console.log(
-      `Acesse http://localhost:${PORTA} para criar o usuário administrador.`
+      `Acesse para criar o usuário administrador.`
     );
   }
+});
+
+// Loga erros nao tratados para aparecerem nos deploy logs do Railway
+process.on("unhandledRejection", (err) => {
+  console.error("[unhandledRejection]", err);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[uncaughtException]", err);
 });
