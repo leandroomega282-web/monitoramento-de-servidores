@@ -48,7 +48,7 @@
     --borda-forte: #cbd5e1;
     --sombra: 0 6px 24px rgba(15, 23, 42, 0.08);
     --sombra-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.06);
-    --hover-linha: rgba(15, 23, 42, 0.03);
+    --hover-linha: rgba(15, 23, 42, 0.06);
 }
 
 * { box-sizing: border-box; }
@@ -112,11 +112,12 @@ h3 { margin: 16px 0 8px; font-size: 0.95rem; font-weight: 600; color: var(--text
 .topo-titulo {
     display: flex;
     align-items: center;
-    gap: 12px;
-    font-size: 1.15rem;
+    gap: 14px;
+    font-size: 1.2rem;
     font-weight: 700;
-    letter-spacing: -0.025em;
+    letter-spacing: -0.03em;
     line-height: 1.15;
+    cursor: default;
 }
 .topo-titulo strong {
     font-weight: 700;
@@ -124,6 +125,7 @@ h3 { margin: 16px 0 8px; font-size: 0.95rem; font-weight: 600; color: var(--text
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
+    transition: opacity 0.2s ease;
 }
 [data-tema="claro"] .topo-titulo strong {
     background: linear-gradient(135deg, var(--texto) 0%, #475569 100%);
@@ -132,16 +134,48 @@ h3 { margin: 16px 0 8px; font-size: 0.95rem; font-weight: 600; color: var(--text
     -webkit-text-fill-color: transparent;
 }
 .topo-titulo .icone-logo {
-    width: 24px; height: 24px;
-    background: linear-gradient(135deg, var(--primario), var(--primario-hover));
-    border-radius: 7px;
+    position: relative;
+    width: 34px;
+    height: 34px;
+    background: linear-gradient(135deg, #6ea3ff 0%, var(--primario) 50%, var(--primario-hover) 100%);
+    border-radius: 9px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     color: #fff;
-    box-shadow: 0 2px 6px rgba(79, 139, 255, 0.35);
+    box-shadow:
+        0 4px 12px rgba(79, 139, 255, 0.4),
+        0 1px 2px rgba(79, 139, 255, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
-.topo-titulo .icone-logo svg { width: 14px; height: 14px; stroke-width: 2.5; }
+.topo-titulo .icone-logo::before {
+    content: '';
+    position: absolute;
+    inset: -5px;
+    border-radius: 14px;
+    background: radial-gradient(circle, rgba(79, 139, 255, 0.28) 0%, transparent 65%);
+    z-index: -1;
+    opacity: 0.55;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+.topo-titulo:hover .icone-logo {
+    transform: translateY(-1px);
+    box-shadow:
+        0 6px 18px rgba(79, 139, 255, 0.5),
+        0 2px 4px rgba(79, 139, 255, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.35),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+}
+.topo-titulo:hover .icone-logo::before { opacity: 1; }
+.topo-titulo .icone-logo svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2.2;
+    filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.2));
+}
 
 .topo-nav { display: flex; align-items: center; gap: 4px; }
 .topo-nav a {
@@ -280,11 +314,12 @@ h3 { margin: 16px 0 8px; font-size: 0.95rem; font-weight: 600; color: var(--text
 }
 .tabela th {
     background: var(--bg-3);
-    color: var(--texto-fraco);
+    color: var(--texto);
     font-size: 0.74rem;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-weight: 600;
+    letter-spacing: 0.09em;
+    font-weight: 700;
+    border-bottom: 1px solid var(--borda-forte);
 }
 .tabela tbody tr:last-child td { border-bottom: 0; }
 .tabela tbody tr { transition: background 0.1s; }
@@ -398,6 +433,18 @@ h3 { margin: 16px 0 8px; font-size: 0.95rem; font-weight: 600; color: var(--text
     font-size: 0.82rem;
     font-weight: 500;
 }
+/* Indicador automatico de campo obrigatorio */
+.form-grid label:has(> input[required]) > span::after,
+.form-grid label:has(> select[required]) > span::after,
+.form-grid label:has(> textarea[required]) > span::after,
+.card-login label:has(> input[required]) > span::after,
+.form-vertical label:has(> input[required]) > span::after,
+.form-vertical label:has(> select[required]) > span::after {
+    content: " *";
+    color: var(--erro);
+    font-weight: 700;
+    margin-left: 1px;
+}
 .form-vertical { display: flex; flex-direction: column; gap: 16px; }
 
 .form-grid input[type=text],
@@ -473,10 +520,12 @@ input[type=time]::-webkit-calendar-picker-indicator:hover {
     padding-right: 36px;
 }
 [data-tema="claro"] .form-grid input,
+[data-tema="claro"] .form-grid select,
 [data-tema="claro"] .card-login input,
-[data-tema="claro"] .form-vertical input {
+[data-tema="claro"] .form-vertical input,
+[data-tema="claro"] .form-vertical select {
     background: var(--bg-2);
-    border-color: var(--borda);
+    border-color: var(--borda-forte);
 }
 .form-grid input:focus,
 .form-grid select:focus,
@@ -658,13 +707,46 @@ input[type=time]::-webkit-calendar-picker-indicator:hover {
 .estado-vazio h3 { margin: 0 0 6px; color: var(--texto); text-transform: none; letter-spacing: 0; font-size: 1rem; }
 .estado-vazio p { margin: 0 0 16px; font-size: 0.9rem; }
 
+/* MARCA NO TOPO (telas sem header proprio) */
+.marca-topo {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 24px;
+    background: var(--bg-2);
+    border-bottom: 1px solid var(--borda);
+    z-index: 100;
+}
+.marca-topo .marca-icone {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, #6ea3ff 0%, var(--primario) 50%, var(--primario-hover) 100%);
+    border-radius: 9px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(79, 139, 255, 0.4);
+}
+.marca-topo .marca-icone svg { width: 20px; height: 20px; stroke-width: 2.2; }
+.marca-topo .marca-nome {
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: -0.02em;
+    color: var(--texto);
+}
+
 /* LOGIN */
 .tela-login {
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 24px;
+    padding: 90px 24px 24px; /* 90px no topo para nao ficar sob a barra de marca */
     background:
         radial-gradient(ellipse at top left, var(--primario-suave), transparent 50%),
         radial-gradient(ellipse at bottom right, var(--primario-suave), transparent 50%),
@@ -1188,7 +1270,13 @@ a:focus-visible,
     .topo-nav { flex-wrap: wrap; justify-content: center; }
     .topo-user { padding-left: 0; margin-left: 0; border-left: 0; }
     .conteudo { padding: 0 14px 60px; margin-top: 16px; }
-    .tabela { font-size: 0.85rem; }
+    .tabela {
+        font-size: 0.85rem;
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+    }
     .tabela th, .tabela td { padding: 9px 11px; }
     .painel-cabecalho { flex-direction: column; align-items: stretch; }
     .indicadores { justify-content: center; }
