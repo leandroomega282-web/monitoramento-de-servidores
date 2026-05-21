@@ -1,0 +1,17 @@
+{
+  "name": "Monitoramento de Servidores",
+  "short_name": "Monitor Servidores",
+  "description": "Sistema de monitoramento de servidores via ping/TCP/HTTP",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#4f8bff",
+  "icons": [
+    {
+      "src": "/assets/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
