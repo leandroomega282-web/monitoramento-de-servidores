@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
 <title>Servidores - Monitoramento de Servidores</title>
 <link rel="stylesheet" href="/assets/style.css">
 <script src="/assets/tema.js"></script>
@@ -75,7 +76,7 @@
             <span class="form-seção-sub">como e quando o servidor será testado</span>
         </div>
         <label>
-            <span>Tipo *</span>
+            <span>Tipo</span>
             <select name="tipo" id="select-tipo" required>
                 <option value="ping">PING (ICMP)</option>
                 <option value="http">HTTP</option>
@@ -84,7 +85,7 @@
             </select>
         </label>
         <label id="campo-porta">
-            <span>Porta *</span>
+            <span>Porta</span>
             <input type="number" name="porta" min="1" max="65535" placeholder="80">
         </label>
         <label>
